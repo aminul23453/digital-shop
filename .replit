@@ -1,4 +1,4 @@
-modules = ["python-3.11"]
+modules = ["python-3.11", "nodejs-20"]
 
 [nix]
 channel = "stable-24_05"
@@ -15,6 +15,10 @@ author = "agent"
 task = "workflow.run"
 args = "Backend Server"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Frontend App"
+
 [[workflows.workflow]]
 name = "Backend Server"
 author = "agent"
@@ -24,8 +28,21 @@ task = "shell.exec"
 args = "cd backend && pip install django djangorestframework django-cors-headers psycopg2-binary && python run.py"
 waitForPort = 8000
 
+[[workflows.workflow]]
+name = "Frontend App"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd frontend && npm install && npm run dev"
+waitForPort = 5000
+
 [deployment]
 run = ["sh", "-c", "cd backend && pip install django djangorestframework django-cors-headers psycopg2-binary && python run.py"]
+
+[[ports]]
+localPort = 5000
+externalPort = 5000
 
 [[ports]]
 localPort = 8000
