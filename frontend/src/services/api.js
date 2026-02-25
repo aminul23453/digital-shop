@@ -6,6 +6,8 @@ export const API_URL = isReplit
   ? `https://${window.location.hostname.replace('5000', '8000')}/api`
   : 'http://localhost:8000/api';
 
+console.log('API_URL:', API_URL);
+
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,

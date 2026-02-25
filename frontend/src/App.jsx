@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Header from './components/Header'
 import Footer from './components/Footer'
@@ -10,15 +10,68 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Account from './pages/Account'
 import { useAuth } from './context/AuthContext'
+import { API_URL } from './services/api'
 
 function App() {
   const { isInitialized } = useAuth();
+  const [apiStatus, setApiStatus] = useState({
+    isLoading: true,
+    isConnected: false,
+    error: null
+  });
+
+  // Check backend API connection
+  useEffect(() => {
+    const checkApiConnection = async () => {
+      try {
+        // Extract the base URL without '/api' at the end
+        const baseUrl = API_URL.substring(0, API_URL.lastIndexOf('/api'));
+        const response = await fetch(baseUrl);
+        const data = await response.json();
+        console.log('API Status:', data);
+        
+        setApiStatus({
+          isLoading: false,
+          isConnected: true,
+          error: null
+        });
+      } catch (error) {
+        console.error('API Connection Error:', error);
+        setApiStatus({
+          isLoading: false,
+          isConnected: false,
+          error: 'Unable to connect to the backend API'
+        });
+      }
+    };
+
+    checkApiConnection();
+  }, []);
 
   // Wait for auth to initialize before rendering routes
-  if (!isInitialized) {
+  if (!isInitialized || apiStatus.isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-16 h-16 border-t-4 border-primary rounded-full animate-spin"></div>
+      </div>
+    )
+  }
+
+  // Show error if API connection failed
+  if (!apiStatus.isConnected) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4">
+        <div className="text-red-500 text-4xl mb-4">⚠️</div>
+        <h1 className="text-2xl font-bold mb-4">Connection Error</h1>
+        <p className="text-gray-700 mb-4 text-center">
+          Unable to connect to the backend API. Please check your connection and try again.
+        </p>
+        <button 
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          onClick={() => window.location.reload()}
+        >
+          Retry Connection
+        </button>
       </div>
     )
   }
