@@ -8,6 +8,8 @@ import 'services/product_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/product_detail_screen.dart';
 import 'screens/cart_screen.dart';
+import 'screens/checkout_screen.dart';
+import 'screens/order_success_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/profile_screen.dart';
 
@@ -47,6 +49,18 @@ class MyApp extends StatelessWidget {
           '/': (context) => const MainNavigationScreen(),
           '/login': (context) => const LoginScreen(),
           '/cart': (context) => const CartScreen(),
+          '/checkout': (context) => const CheckoutScreen(),
+          '/order-success': (context) => const OrderSuccessScreen(),
+        },
+        onGenerateRoute: (settings) {
+          // Handle dynamic routes
+          if (settings.name?.startsWith('/product/') == true) {
+            final slug = settings.name!.split('/')[2];
+            return MaterialPageRoute(
+              builder: (context) => ProductDetailScreen(productSlug: slug),
+            );
+          }
+          return null;
         },
       ),
     );

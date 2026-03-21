@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'product_variant.dart';
 
 class Product {
@@ -64,6 +65,30 @@ class Product {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'slug': slug,
+      'category': categoryId,
+      'category_name': categoryName,
+      'description': description,
+      'price': price.toString(),
+      'discount_price': discountPrice?.toString(),
+      'inventory': inventory,
+      'image_url': imageUrl,
+      'is_featured': isFeatured,
+      'is_active': isActive,
+      'materials': materials,
+      'sustainability_rating': sustainabilityRating,
+      'variants': variants?.map((v) => v.toJson()).toList(),
+    };
+  }
+
+  String toJsonString() {
+    return jsonEncode(toJson());
+  }
+
   double get currentPrice {
     return discountPrice ?? price;
   }
@@ -75,5 +100,26 @@ class Product {
 
   bool get isOnSale {
     return discountPrice != null;
+  }
+
+  // Create a copy of this product with updated inventory
+  Product copyWithUpdatedInventory(int newInventory) {
+    return Product(
+      id: id,
+      title: title,
+      slug: slug,
+      categoryId: categoryId,
+      categoryName: categoryName,
+      description: description,
+      price: price,
+      discountPrice: discountPrice,
+      inventory: newInventory,
+      imageUrl: imageUrl,
+      isFeatured: isFeatured,
+      isActive: isActive,
+      materials: materials,
+      sustainabilityRating: sustainabilityRating,
+      variants: variants,
+    );
   }
 }

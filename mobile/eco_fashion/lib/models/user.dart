@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class User {
   final int id;
   final String username;
@@ -23,6 +25,20 @@ class User {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'username': username,
+      'email': email,
+      'first_name': firstName,
+      'last_name': lastName,
+    };
+  }
+
+  String toJsonString() {
+    return jsonEncode(toJson());
+  }
+
   String get fullName {
     if (firstName != null && lastName != null) {
       return '$firstName $lastName';
@@ -31,5 +47,16 @@ class User {
     } else {
       return username;
     }
+  }
+  
+  // Create a sample user for demo purposes
+  static User demoUser() {
+    return User(
+      id: 1,
+      username: 'demo_user',
+      email: 'user@example.com',
+      firstName: 'Eco',
+      lastName: 'Shopper',
+    );
   }
 }

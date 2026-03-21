@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Category {
   final int id;
   final String name;
@@ -18,5 +20,18 @@ class Category {
       slug: json['slug'],
       description: json['description'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'slug': slug,
+      'description': description,
+    };
+  }
+
+  String toJsonString() {
+    return jsonEncode(toJson());
   }
 }
