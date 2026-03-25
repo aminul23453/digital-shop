@@ -1,419 +1,652 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import '../models/product.dart';
 import '../models/product_variant.dart';
-import '../services/product_provider.dart';
-import '../services/cart_provider.dart';
-import '../utils/format_utils.dart';
+import '../providers/products_provider.dart';
+import '../providers/cart_provider.dart';
 
 class ProductDetailScreen extends StatefulWidget {
-  final String productSlug;
-
-  const ProductDetailScreen({
-    Key? key,
-    required this.productSlug,
-  }) : super(key: key);
+  const ProductDetailScreen({Key? key}) : super(key: key);
 
   @override
-  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+  _ProductDetailScreenState createState() => _ProductDetailScreenState();
 }
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
+  bool _isLoading = true;
+  Product? _product;
+  String? _selectedSize;
+  String? _selectedColor;
   int _quantity = 1;
   ProductVariant? _selectedVariant;
-  final ScrollController _scrollController = ScrollController();
+  bool _addingToCart = false;
 
   @override
-  void initState() {
-    super.initState();
-    // Load product details when the screen is first displayed
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ProductProvider>(context, listen: false)
-          .loadProductDetails(widget.productSlug);
-    });
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+    
+    if (args != null && args.containsKey('slug')) {
+      final slug = args['slug'];
+      _loadProduct(slug);
+    } else {
+      // Navigate back if no slug provided
+      Navigator.of(context).pop();
+    }
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
+  Future<void> _loadProduct(String slug) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final product = await Provider.of<ProductsProvider>(context, listen: false)
+          .getProductBySlug(slug);
+      
+      setState(() {
+        _product = product;
+        _isLoading = false;
+      });
+    } catch (error) {
+      setState(() {
+        _isLoading = false;
+      });
+      
+      // Show error snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load product details')),
+      );
+    }
+  }
+
+  // Get available sizes for the selected color
+  List<String> get _availableSizes {
+    if (_product == null || _product!.variants == null) {
+      return [];
+    }
+    
+    if (_selectedColor == null) {
+      return _product!.variants!
+          .map((v) => v.size)
+          .toSet()
+          .toList();
+    }
+    
+    return _product!.variants!
+        .where((v) => v.color == _selectedColor)
+        .map((v) => v.size)
+        .toSet()
+        .toList();
+  }
+
+  // Get available colors for the selected size
+  List<String> get _availableColors {
+    if (_product == null || _product!.variants == null) {
+      return [];
+    }
+    
+    if (_selectedSize == null) {
+      return _product!.variants!
+          .map((v) => v.color)
+          .toSet()
+          .toList();
+    }
+    
+    return _product!.variants!
+        .where((v) => v.size == _selectedSize)
+        .map((v) => v.color)
+        .toSet()
+        .toList();
+  }
+
+  // Get selected variant
+  void _updateSelectedVariant() {
+    if (_product == null || _product!.variants == null) {
+      _selectedVariant = null;
+      return;
+    }
+    
+    if (_selectedSize != null && _selectedColor != null) {
+      try {
+        _selectedVariant = _product!.variants!.firstWhere(
+          (v) => v.size == _selectedSize && v.color == _selectedColor
+        );
+      } catch (e) {
+        _selectedVariant = null;
+      }
+    } else {
+      _selectedVariant = null;
+    }
+  }
+
+  // Add to cart
+  Future<void> _addToCart() async {
+    if (_product == null) {
+      return;
+    }
+    
+    if (_product!.variants != null && _product!.variants!.isNotEmpty && _selectedVariant == null) {
+      // Show error if variant is required but not selected
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select size and color')),
+      );
+      return;
+    }
+    
+    setState(() {
+      _addingToCart = true;
+    });
+    
+    try {
+      final success = await Provider.of<CartProvider>(context, listen: false)
+          .addToCart(_product!.id, _quantity, variantId: _selectedVariant?.id);
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_product!.title} added to cart'),
+            action: SnackBarAction(
+              label: 'VIEW CART',
+              onPressed: () {
+                Navigator.of(context).pushNamed('/cart');
+              },
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to add to cart. Item may be out of stock.')),
+        );
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('An error occurred. Please try again.')),
+      );
+    } finally {
+      setState(() {
+        _addingToCart = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Consumer<ProductProvider>(
-        builder: (context, productProvider, child) {
-          if (productProvider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final product = productProvider.selectedProduct;
-          if (product == null) {
-            return const Center(child: Text('Product not found'));
-          }
-
-          // If no variant is selected and product has variants, select the first one
-          if (_selectedVariant == null && product.variants != null && product.variants!.isNotEmpty) {
-            _selectedVariant = product.variants![0];
-          }
-
-          return CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // App Bar with Product Image
-              SliverAppBar(
-                expandedHeight: 300,
-                pinned: true,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Stack(
-                    children: [
-                      // Product image
-                      Hero(
-                        tag: 'product_${product.id}',
-                        child: CachedNetworkImage(
-                          imageUrl: _selectedVariant?.imageUrl ?? product.imageUrl,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          placeholder: (context, url) => const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                          errorWidget: (context, url, error) => const Center(
-                            child: Icon(Icons.error),
-                          ),
-                        ),
-                      ),
-
-                      // Overlays
-                      if (product.isOnSale)
-                        Positioned(
-                          top: 16,
-                          left: 16,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '${product.discountPercentage.toInt()}% OFF',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        ),
-                      Positioned(
-                        top: 16,
-                        right: 16,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green[700],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            FormatUtils.getProductStatusText(product.sustainabilityRating),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Product Details
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
+      appBar: AppBar(
+        title: Text(_product?.title ?? 'Product Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            onPressed: () {
+              Navigator.of(context).pushNamed('/cart');
+            },
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _product == null
+              ? const Center(child: Text('Product not found'))
+              : SingleChildScrollView(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title and Price
-                      Text(
-                        product.title,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Category
-                      Text(
-                        product.categoryName,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Price
-                      Row(
-                        children: [
-                          if (product.isOnSale) ...[
-                            Text(
-                              FormatUtils.formatCurrency(product.currentPrice),
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              FormatUtils.formatCurrency(product.price),
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                decoration: TextDecoration.lineThrough,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ] else
-                            Text(
-                              FormatUtils.formatCurrency(product.price),
-                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Sustainability Rating
-                      Row(
-                        children: [
-                          const Text(
-                            'Sustainability: ',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                      // Product image
+                      AspectRatio(
+                        aspectRatio: 1,
+                        child: Image.network(
+                          _selectedVariant?.imageUrl ?? _product!.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: Icon(Icons.image_not_supported, color: Colors.grey, size: 50),
                             ),
                           ),
-                          RatingBar.builder(
-                            initialRating: product.sustainabilityRating.toDouble(),
-                            minRating: 0,
-                            direction: Axis.horizontal,
-                            allowHalfRating: false,
-                            itemCount: 5,
-                            itemSize: 20,
-                            ignoreGestures: true,
-                            itemBuilder: (context, _) => Icon(
-                              Icons.eco,
-                              color: Colors.green[700],
-                            ),
-                            onRatingUpdate: (_) {},
-                          ),
-                        ],
+                        ),
                       ),
-                      const SizedBox(height: 16),
-
-                      // Materials
-                      if (product.materials != null) ...[
-                        const Text(
-                          'Materials:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(product.materials!),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // Variants Section
-                      if (product.variants != null && product.variants!.isNotEmpty) ...[
-                        const Text(
-                          'Available Options:',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Size Selection
-                        Wrap(
-                          spacing: 8,
-                          children: _getUniqueSizes(product.variants!).map((size) {
-                            return ChoiceChip(
-                              label: Text(size),
-                              selected: _selectedVariant?.size == size,
-                              onSelected: (selected) {
-                                if (selected) {
-                                  setState(() {
-                                    // Find a variant with this size and current color or first available
-                                    final variantWithSizeAndColor = product.variants!.firstWhere(
-                                      (v) => v.size == size && (_selectedVariant == null || v.color == _selectedVariant!.color),
-                                      orElse: () => product.variants!.firstWhere((v) => v.size == size),
-                                    );
-                                    _selectedVariant = variantWithSizeAndColor;
-                                  });
-                                }
-                              },
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Color Selection
-                        Wrap(
-                          spacing: 8,
-                          children: _getUniqueColors(product.variants!).map((color) {
-                            // Only show colors available for the selected size
-                            final availableInSelectedSize = product.variants!.any(
-                              (v) => v.color == color && (_selectedVariant == null || v.size == _selectedVariant!.size),
-                            );
+                      
+                      // Product info
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  _product!.categoryName,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (_product!.sustainabilityRating >= 4)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF4CAF50),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.eco,
+                                          color: Colors.white,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Eco-Friendly',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                              ],
+                            ),
                             
-                            if (!availableInSelectedSize) return const SizedBox.shrink();
+                            const SizedBox(height: 8),
                             
-                            return ChoiceChip(
-                              label: Text(color),
-                              selected: _selectedVariant?.color == color,
-                              onSelected: (selected) {
-                                if (selected) {
-                                  setState(() {
-                                    // Find a variant with this color and current size
-                                    _selectedVariant = product.variants!.firstWhere(
-                                      (v) => v.color == color && v.size == _selectedVariant!.size,
+                            Text(
+                              _product!.title,
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 12),
+                            
+                            Row(
+                              children: [
+                                if (_product!.isOnSale) ...[
+                                  Text(
+                                    '\$${_product!.discountPrice!.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '\$${_product!.price.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      decoration: TextDecoration.lineThrough,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.secondary,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '${_product!.discountPercentage.toStringAsFixed(0)}% OFF',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ] else
+                                  Text(
+                                    '\$${_product!.price.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            
+                            if (_product!.variants != null && _product!.variants!.isNotEmpty) ...[
+                              const SizedBox(height: 20),
+                              
+                              // Size selection
+                              Text(
+                                'Size',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                children: _availableSizes.map((size) {
+                                  final isSelected = size == _selectedSize;
+                                  return InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedSize = size;
+                                        // If the selected color is not available for this size, reset it
+                                        if (_selectedColor != null &&
+                                            !_product!.variants!
+                                                .any((v) => v.size == size && v.color == _selectedColor)) {
+                                          _selectedColor = null;
+                                        }
+                                        _updateSelectedVariant();
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? Theme.of(context).colorScheme.primary
+                                              : Colors.grey,
+                                          width: isSelected ? 2 : 1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                        color: isSelected
+                                            ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                                            : Colors.transparent,
+                                      ),
+                                      child: Text(
+                                        size,
+                                        style: TextStyle(
+                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          color: isSelected
+                                              ? Theme.of(context).colorScheme.primary
+                                              : Colors.black,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                              
+                              const SizedBox(height: 16),
+                              
+                              // Color selection
+                              Text(
+                                'Color',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                children: _availableColors.map((color) {
+                                  final isSelected = color == _selectedColor;
+                                  return InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedColor = color;
+                                        // If the selected size is not available for this color, reset it
+                                        if (_selectedSize != null &&
+                                            !_product!.variants!
+                                                .any((v) => v.color == color && v.size == _selectedSize)) {
+                                          _selectedSize = null;
+                                        }
+                                        _updateSelectedVariant();
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: isSelected
+                                              ? Theme.of(context).colorScheme.primary
+                                              : Colors.grey,
+                                          width: isSelected ? 2 : 1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(4),
+                                        color: isSelected
+                                            ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                                            : Colors.transparent,
+                                      ),
+                                      child: Text(
+                                        color,
+                                        style: TextStyle(
+                                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                          color: isSelected
+                                              ? Theme.of(context).colorScheme.primary
+                                              : Colors.black,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                            ],
+                            
+                            const SizedBox(height: 20),
+                            
+                            // Quantity selector
+                            Row(
+                              children: [
+                                Text(
+                                  'Quantity',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Spacer(),
+                                IconButton(
+                                  icon: const Icon(Icons.remove),
+                                  onPressed: _quantity > 1
+                                      ? () {
+                                          setState(() {
+                                            _quantity--;
+                                          });
+                                        }
+                                      : null,
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.grey),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    _quantity.toString(),
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.add),
+                                  onPressed: _quantity < (_selectedVariant?.stock ?? _product!.inventory)
+                                      ? () {
+                                          setState(() {
+                                            _quantity++;
+                                          });
+                                        }
+                                      : null,
+                                ),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 20),
+                            
+                            // Stock status
+                            Row(
+                              children: [
+                                const Icon(Icons.inventory, size: 16, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                if (_selectedVariant != null)
+                                  Text(
+                                    _selectedVariant!.stock > 0
+                                        ? 'In Stock (${_selectedVariant!.stock} available)'
+                                        : 'Out of Stock',
+                                    style: TextStyle(
+                                      color: _selectedVariant!.stock > 0 ? Colors.green : Colors.red,
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    _product!.inventory > 0
+                                        ? 'In Stock (${_product!.inventory} available)'
+                                        : 'Out of Stock',
+                                    style: TextStyle(
+                                      color: _product!.inventory > 0 ? Colors.green : Colors.red,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Description
+                            const Text(
+                              'Description',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _product!.description,
+                              style: const TextStyle(fontSize: 14, height: 1.5),
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Materials and sustainability
+                            if (_product!.materials != null) ...[
+                              const Text(
+                                'Materials',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _product!.materials!,
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            
+                            Row(
+                              children: [
+                                const Text(
+                                  'Sustainability Rating',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Row(
+                                  children: List.generate(5, (index) {
+                                    return Icon(
+                                      Icons.eco,
+                                      color: index < _product!.sustainabilityRating
+                                          ? const Color(0xFF4CAF50)
+                                          : Colors.grey[300],
+                                      size: 20,
                                     );
-                                  });
-                                }
-                              },
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // Quantity Selection
-                      Row(
-                        children: [
-                          const Text(
-                            'Quantity:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                                  }),
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          _buildQuantityControls(),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Add to Cart Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () => _addToCart(context, product),
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                          ),
-                          child: const Text(
-                            'Add to Cart',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                            
+                            const SizedBox(height: 8),
+                            Text(
+                              _getSustainabilityLabel(_product!.sustainabilityRating),
+                              style: TextStyle(
+                                color: _getSustainabilityColor(_product!.sustainabilityRating),
+                                fontSize: 14,
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 24),
-
-                      // Description
-                      const Text(
-                        'Description',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(product.description),
-                      const SizedBox(height: 32),
                     ],
                   ),
                 ),
+      bottomNavigationBar: _isLoading || _product == null
+          ? null
+          : SafeArea(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      offset: const Offset(0, -3),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: ElevatedButton(
+                  onPressed: (_selectedVariant?.stock ?? _product!.inventory) > 0 && !_addingToCart
+                      ? _addToCart
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: _addingToCart
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'ADD TO CART',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                ),
               ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildQuantityControls() {
-    return Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.remove),
-          onPressed: _quantity > 1
-              ? () => setState(() {
-                    _quantity--;
-                  })
-              : null,
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            '$_quantity',
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
             ),
-          ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.add),
-          onPressed: () => setState(() {
-            _quantity++;
-          }),
-        ),
-      ],
     );
   }
 
-  void _addToCart(BuildContext context, Product product) {
-    final cartProvider = Provider.of<CartProvider>(context, listen: false);
-    
-    cartProvider.addToCart(
-      product.id,
-      _quantity,
-      variantId: _selectedVariant?.id,
-    );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${product.title} added to cart'),
-        action: SnackBarAction(
-          label: 'View Cart',
-          onPressed: () {
-            Navigator.pushNamed(context, '/cart');
-          },
-        ),
-      ),
-    );
+  String _getSustainabilityLabel(int rating) {
+    switch (rating) {
+      case 1:
+        return 'Low Impact';
+      case 2:
+        return 'Medium Impact';
+      case 3:
+        return 'Eco-Friendly';
+      case 4:
+        return 'Sustainable';
+      case 5:
+        return 'Highly Sustainable';
+      default:
+        return 'Not Rated';
+    }
   }
 
-  List<String> _getUniqueSizes(List<ProductVariant> variants) {
-    final sizes = variants.map((v) => v.size).toSet().toList();
-    sizes.sort(); // Sort sizes in ascending order
-    return sizes;
-  }
-
-  List<String> _getUniqueColors(List<ProductVariant> variants) {
-    return variants.map((v) => v.color).toSet().toList();
+  Color _getSustainabilityColor(int rating) {
+    switch (rating) {
+      case 1:
+        return Colors.red;
+      case 2:
+        return Colors.orange;
+      case 3:
+        return Colors.blue;
+      case 4:
+        return Colors.green[700]!;
+      case 5:
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
   }
 }

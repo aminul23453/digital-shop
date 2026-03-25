@@ -1,139 +1,152 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'utils/theme.dart';
-import 'services/api_service.dart';
-import 'services/auth_provider.dart';
-import 'services/cart_provider.dart';
-import 'services/product_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'models/user.dart';
+import 'services/local_storage_service.dart';
+import 'services/product_service.dart';
+import 'services/cart_service.dart';
+import 'services/auth_service.dart';
+import 'services/order_service.dart';
+
+import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/product_list_screen.dart';
 import 'screens/product_detail_screen.dart';
 import 'screens/cart_screen.dart';
 import 'screens/checkout_screen.dart';
-import 'screens/order_success_screen.dart';
-import 'screens/login_screen.dart';
+import 'screens/order_history_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/register_screen.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'providers/products_provider.dart';
+import 'providers/cart_provider.dart';
+import 'providers/auth_provider.dart';
+import 'providers/order_provider.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize services
+  final localStorageService = LocalStorageService();
+  final productService = ProductService();
+  final cartService = CartService();
+  final authService = AuthService();
+  final orderService = OrderService();
+  
+  // Preload data
+  await localStorageService.loadSampleProducts();
+  await localStorageService.loadSampleCategories();
+  
+  runApp(MyApp(
+    productService: productService,
+    cartService: cartService,
+    authService: authService,
+    orderService: orderService,
+  ));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  final ProductService productService;
+  final CartService cartService;
+  final AuthService authService;
+  final OrderService orderService;
+  
+  const MyApp({
+    Key? key,
+    required this.productService,
+    required this.cartService,
+    required this.authService,
+    required this.orderService,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Configure API Service
-    final apiService = ApiService(
-      baseUrl: 'http://localhost:8000/api', // Change this for production
-    );
-
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-          create: (_) => AuthProvider(apiService),
+          create: (ctx) => ProductsProvider(productService),
         ),
         ChangeNotifierProvider(
-          create: (_) => ProductProvider(apiService),
+          create: (ctx) => CartProvider(cartService),
         ),
         ChangeNotifierProvider(
-          create: (_) => CartProvider(apiService),
+          create: (ctx) => AuthProvider(authService),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => OrderProvider(orderService),
         ),
       ],
-      child: MaterialApp(
-        title: 'Eco Fashion',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        initialRoute: '/',
-        routes: {
-          '/': (context) => const MainNavigationScreen(),
-          '/login': (context) => const LoginScreen(),
-          '/cart': (context) => const CartScreen(),
-          '/checkout': (context) => const CheckoutScreen(),
-          '/order-success': (context) => const OrderSuccessScreen(),
-        },
-        onGenerateRoute: (settings) {
-          // Handle dynamic routes
-          if (settings.name?.startsWith('/product/') == true) {
-            final slug = settings.name!.split('/')[2];
-            return MaterialPageRoute(
-              builder: (context) => ProductDetailScreen(productSlug: slug),
-            );
-          }
-          return null;
-        },
+      child: Consumer<AuthProvider>(
+        builder: (ctx, auth, _) => MaterialApp(
+          title: 'Eco Fashion',
+          theme: ThemeData(
+            primarySwatch: Colors.green,
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF4CAF50),
+              background: const Color(0xFFF5F5F5),
+              secondary: const Color(0xFF8BC34A),
+              tertiary: const Color(0xFFCDDC39),
+            ),
+            fontFamily: 'Poppins',
+            textTheme: const TextTheme(
+              displayLarge: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20)),
+              displayMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20)),
+              displaySmall: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1B5E20)),
+              headlineMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF2E7D32)),
+              bodyLarge: TextStyle(fontSize: 16, color: Color(0xFF33691E)),
+              bodyMedium: TextStyle(fontSize: 14, color: Color(0xFF33691E)),
+            ),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Color(0xFF4CAF50),
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8BC34A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              ),
+            ),
+            cardTheme: CardTheme(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFF8BC34A)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFF4CAF50), width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+          ),
+          home: const SplashScreen(),
+          routes: {
+            '/home': (ctx) => const HomeScreen(),
+            '/products': (ctx) => const ProductListScreen(),
+            '/product-detail': (ctx) => const ProductDetailScreen(),
+            '/cart': (ctx) => const CartScreen(),
+            '/checkout': (ctx) => const CheckoutScreen(),
+            '/orders': (ctx) => const OrderHistoryScreen(),
+            '/profile': (ctx) => const ProfileScreen(),
+            '/login': (ctx) => const LoginScreen(),
+            '/register': (ctx) => const RegisterScreen(),
+          },
+        ),
       ),
-    );
-  }
-}
-
-class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({Key? key}) : super(key: key);
-
-  @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
-}
-
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _selectedIndex = 0;
-
-  final List<Widget> _screens = [
-    const HomeScreen(),
-    const Placeholder(fallbackHeight: 200, child: Center(child: Text('Categories'))),
-    const Placeholder(fallbackHeight: 200, child: Center(child: Text('Favorites'))),
-    const ProfileScreen(),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        return Scaffold(
-          body: IndexedStack(
-            index: _selectedIndex,
-            children: _screens,
-          ),
-          bottomNavigationBar: BottomNavigationBar(
-            type: BottomNavigationBarType.fixed,
-            currentIndex: _selectedIndex,
-            selectedItemColor: Theme.of(context).primaryColor,
-            unselectedItemColor: Colors.grey,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home_outlined),
-                activeIcon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.category_outlined),
-                activeIcon: Icon(Icons.category),
-                label: 'Categories',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.favorite_border),
-                activeIcon: Icon(Icons.favorite),
-                label: 'Favorites',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person_outline),
-                activeIcon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-            ],
-            onTap: (index) {
-              // If user is not authenticated and tries to access profile, redirect to login
-              if (index == 3 && !authProvider.isAuthenticated) {
-                Navigator.pushNamed(context, '/login');
-                return;
-              }
-              
-              setState(() {
-                _selectedIndex = index;
-              });
-            },
-          ),
-        );
-      },
     );
   }
 }
