@@ -24,15 +24,15 @@ function App() {
   useEffect(() => {
     const checkApiConnection = async () => {
       try {
-        // Extract the base URL without '/api' at the end
-        const baseUrl = API_URL.substring(0, API_URL.lastIndexOf('/api'));
-        const response = await fetch(baseUrl);
+        // Try to access the products endpoint directly
+        const response = await fetch(`${API_URL}/products`);
         const data = await response.json();
-        console.log('API Status:', data);
+        console.log('API Products:', data);
         
+        // If we get any response, consider it connected
         setApiStatus({
           isLoading: false,
-          isConnected: true,
+          isConnected: Array.isArray(data),
           error: null
         });
       } catch (error) {

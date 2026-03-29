@@ -20,6 +20,10 @@ args = "Backend Server"
 task = "workflow.run"
 args = "Frontend App"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "JS Backend Server"
+
 [[workflows.workflow]]
 name = "Backend Server"
 author = "agent"
@@ -38,8 +42,21 @@ task = "shell.exec"
 args = "cd frontend && npm install && npm run dev"
 waitForPort = 5000
 
+[[workflows.workflow]]
+name = "JS Backend Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend-js && node server.js"
+waitForPort = 3000
+
 [deployment]
 run = ["sh", "-c", "cd backend && pip install django djangorestframework django-cors-headers psycopg2-binary && python run.py"]
+
+[[ports]]
+localPort = 3000
+externalPort = 3000
 
 [[ports]]
 localPort = 5000
