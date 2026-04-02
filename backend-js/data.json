@@ -335,8 +335,26 @@
       "firstName": "Admin",
       "lastName": "User",
       "isAdmin": true
+    },
+    {
+      "id": 2,
+      "username": "Lesalon",
+      "email": "lesa@gmail.com",
+      "password": "wahwah12",
+      "firstName": "",
+      "lastName": "",
+      "isAdmin": false
     }
   ],
-  "cartItems": [],
+  "cartItems": [
+    {
+      "id": 1,
+      "session_id": "qpi5ccknhw6z15wndrx0b",
+      "product": 10,
+      "variant": null,
+      "quantity": 2,
+      "created_at": "2025-05-07T11:20:09.818Z"
+    }
+  ],
   "orders": []
 }

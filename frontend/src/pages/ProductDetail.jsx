@@ -12,7 +12,7 @@ import {
   Recycle, 
   ShoppingBag, 
   Truck, 
-  WaterDrop 
+  Droplet
 } from 'lucide-react'
 import { useCart } from '../context/CartContext'
 import { formatPrice, getSustainabilityLabel, getSustainabilityColor } from '../lib/utils'
@@ -219,7 +219,7 @@ const ProductDetail = () => {
                 <span className="text-xs">Eco-friendly</span>
               </div>
               <div className="flex items-center bg-blue-50 p-2 rounded-md">
-                <WaterDrop className="h-4 w-4 text-blue-600 mr-2" />
+                <Droplet className="h-4 w-4 text-blue-600 mr-2" />
                 <span className="text-xs">Water-saving</span>
               </div>
               <div className="flex items-center bg-amber-50 p-2 rounded-md">

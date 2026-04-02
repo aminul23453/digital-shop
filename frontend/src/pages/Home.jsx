@@ -23,15 +23,28 @@ const Home = () => {
   const fetchProducts = async (url) => {
     setLoading(true)
     try {
-      // Build URL with query params if not paginating
-      const endpoint = url || `${api.API_URL}/products/?${searchParams.toString()}`
+      // Determine endpoint: full URL for pagination or build from API_URL + params
+      const endpoint = url || `${api.API_URL}/products?${searchParams.toString()}`
       const response = await api.getProducts(endpoint)
-      
-      setProducts(response.data.results)
-      setNextPage(response.data.next)
-      setPrevPage(response.data.previous)
+      const data = response.data
+
+      // Handle paginated vs. non-paginated response
+      if (data && Array.isArray(data)) {
+        // Non-paginated: API returned array of products
+        setProducts(data)
+        setNextPage(null)
+        setPrevPage(null)
+      } else {
+        // Paginated: API returned { results, next, previous }
+        setProducts(Array.isArray(data.results) ? data.results : [])
+        setNextPage(data.next || null)
+        setPrevPage(data.previous || null)
+      }
     } catch (error) {
       console.error('Failed to fetch products', error)
+      setProducts([])
+      setNextPage(null)
+      setPrevPage(null)
     } finally {
       setLoading(false)
     }
@@ -133,7 +146,7 @@ const Home = () => {
                 </div>
               ))}
             </div>
-          ) : products.length > 0 ? (
+          ) : (products && products.length > 0) ? (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {products.map(product => (
@@ -168,10 +181,7 @@ const Home = () => {
                 Try adjusting your search or filter criteria
               </p>
               <Button 
-                onClick={() => {
-                  // Reset search params and fetch all products
-                  window.location.href = '/'
-                }}
+                onClick={() => { window.location.href = '/' }}
               >
                 View All Products
               </Button>

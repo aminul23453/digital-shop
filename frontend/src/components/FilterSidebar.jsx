@@ -18,7 +18,7 @@ import {
 } from './ui/select'
 import { Badge } from './ui/badge'
 import { Slider } from './ui/slider'
-import { CheckCircle2, CircleX, Filter, FilterX, SlidersHorizontal } from 'lucide-react'
+import { CheckCircle2, CheckCircle, Filter, FilterX, SlidersHorizontal } from 'lucide-react'
 
 // Importing Accordion component
 const AccordionUI = ({ title, children, defaultValue = "item-1" }) => (

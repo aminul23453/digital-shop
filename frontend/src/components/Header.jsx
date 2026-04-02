@@ -85,60 +85,77 @@ const Header = () => {
               </nav>
             </SheetContent>
           </Sheet>
+
           <Link to="/" className="flex items-center">
             <span className="text-xl font-bold tracking-tight">EcoThreads</span>
           </Link>
         </div>
+
         <div className="hidden md:flex flex-1">
           <NavigationMenu className="ml-6">
             <NavigationMenuList>
               <NavigationMenuItem>
-                <Link to="/">
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    Home
-                  </NavigationMenuLink>
-                </Link>
+                <NavigationMenuLink
+                  asChild
+                  className={navigationMenuTriggerStyle()}
+                >
+                  <Link to="/">Home</Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
+
               <NavigationMenuItem>
-                <Link to="/?category=t-shirts">
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    T-Shirts
-                  </NavigationMenuLink>
-                </Link>
+                <NavigationMenuLink
+                  asChild
+                  className={navigationMenuTriggerStyle()}
+                >
+                  <Link to="/?category=t-shirts">T-Shirts</Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
+
               <NavigationMenuItem>
-                <Link to="/?category=outerwear">
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    Outerwear
-                  </NavigationMenuLink>
-                </Link>
+                <NavigationMenuLink
+                  asChild
+                  className={navigationMenuTriggerStyle()}
+                >
+                  <Link to="/?category=outerwear">Outerwear</Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
+
               <NavigationMenuItem>
-                <Link to="/?category=bottoms">
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    Bottoms
-                  </NavigationMenuLink>
-                </Link>
+                <NavigationMenuLink
+                  asChild
+                  className={navigationMenuTriggerStyle()}
+                >
+                  <Link to="/?category=bottoms">Bottoms</Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
+
               <NavigationMenuItem>
-                <Link to="/?category=accessories">
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    Accessories
-                  </NavigationMenuLink>
-                </Link>
+                <NavigationMenuLink
+                  asChild
+                  className={navigationMenuTriggerStyle()}
+                >
+                  <Link to="/?category=accessories">Accessories</Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
+
               <NavigationMenuItem>
-                <Link to="/?featured=true">
-                  <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                    Featured
-                  </NavigationMenuLink>
-                </Link>
+                <NavigationMenuLink
+                  asChild
+                  className={navigationMenuTriggerStyle()}
+                >
+                  <Link to="/?featured=true">Featured</Link>
+                </NavigationMenuLink>
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
         </div>
+
         <div className="flex items-center gap-4 ml-auto">
-          <form onSubmit={handleSearch} className="hidden md:flex w-full max-w-sm items-center">
+          <form 
+            onSubmit={handleSearch} 
+            className="hidden md:flex w-full max-w-sm items-center"
+          >
             <div className="relative w-full">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -150,6 +167,7 @@ const Header = () => {
               />
             </div>
           </form>
+
           <div className="flex items-center space-x-1">
             {user ? (
               <Link to="/account">
@@ -165,6 +183,7 @@ const Header = () => {
                 </Button>
               </Link>
             )}
+
             <Link to="/cart">
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingBag className="h-5 w-5" />

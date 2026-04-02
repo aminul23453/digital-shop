@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/ui/use-toast'
 import * as api from '../services/api'
 import { formatPrice } from '../lib/utils'
-import { CircleUser, FileText, LogOut, Package, ShoppingBag, User } from 'lucide-react'
+import { Circle, FileText, LogOut, Package, ShoppingBag, User } from 'lucide-react'
 
 const Account = () => {
   const navigate = useNavigate()
@@ -131,7 +131,7 @@ const Account = () => {
               
               <div className="space-y-2">
                 <Button variant="outline" size="sm" className="w-full justify-start">
-                  <CircleUser className="mr-2 h-4 w-4" />
+                  <Circle className="mr-2 h-4 w-4" />
                   Profile
                 </Button>
                 <Button variant="outline" size="sm" className="w-full justify-start">

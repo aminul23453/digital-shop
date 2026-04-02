@@ -1,36 +1,31 @@
+// vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-  base: './',
-  cacheDir: './.vite',
-  preview: {
-    host: '0.0.0.0',
-    port: 5000,
-  },
-  // Server configuration with Replit domains allowed
+  resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   server: {
     host: '0.0.0.0',
-    port: 5000,
+    port: 5173,          // ← your dev port
     strictPort: true,
     cors: true,
     hmr: {
-      clientPort: 443,
+      protocol: 'ws',    // or 'wss' if you’re on HTTPS
+      host: 'localhost', // or window.location.hostname on repl.it
+      port: 5173,        // ← match your dev port
     },
     allowedHosts: [
       '*.replit.dev',
       '*.replit.app',
       '*.repl.co',
       'localhost',
-      '4292b118-a774-4470-aa1c-70f8aead615e-00-y6et5fxk8hoa.kirk.replit.dev',
+      // etc…
     ],
-  }
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 5173,          // ← match again
+  },
 })
