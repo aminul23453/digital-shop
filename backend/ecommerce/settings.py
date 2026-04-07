@@ -116,12 +116,16 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # REST Framework settings
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
-    ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 12,
-}
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        ],
+     'DEFAULT_PERMISSION_CLASSES': [
+         'rest_framework.permissions.AllowAny',
+     ],
+     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+     'PAGE_SIZE': 12,
+ }
+
 
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = True
@@ -129,5 +133,6 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5000",
     "http://0.0.0.0:5000",
     "https://*.replit.dev",
-    "https://*.repl.co"
+    "https://*.repl.co",
+    "http://localhost:5173"
 ]

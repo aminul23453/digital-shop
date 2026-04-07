@@ -69,6 +69,9 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 class CartItemViewSet(viewsets.ModelViewSet):
     serializer_class = CartItemSerializer
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []           
+    pagination_class       = None         
+
     
     def get_queryset(self):
         if self.request.user.is_authenticated:
@@ -126,6 +129,13 @@ def login_view(request):
     if user:
         serializer = UserSerializer(user)
         return Response(serializer.data)
+    if user:
+        serializer = UserSerializer(user)
+        # mirror your Node API: return user object plus the fake token
+        return Response(
+            { 'user': serializer.data, 'token': 'fake-jwt-token' },
+           status=status.HTTP_200_OK
+      )
     
     return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 

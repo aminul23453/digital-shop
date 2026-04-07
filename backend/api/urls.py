@@ -14,5 +14,7 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('user/', views.UserDetailView.as_view(), name='user-detail'),
     path('checkout/', views.create_order, name='checkout'),
-    path('merge-cart/', views.merge_carts, name='merge-cart'),
+    #path('merge-cart/', views.merge_carts, name='merge-cart'),
+    path('cart/merge/', views.merge_carts, name='merge-cart'),
+    #path('cart/merge/',  views.merge_carts,    name='merge-cart'),
 ]

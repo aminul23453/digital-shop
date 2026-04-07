@@ -14,6 +14,7 @@ class Category(models.Model):
     class Meta:
         verbose_name_plural = 'Categories'
         ordering = ['name']
+        
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -134,6 +135,7 @@ class CartItem(models.Model):
     
     class Meta:
         unique_together = ('user', 'session_id', 'product', 'variant')
+        ordering = ['created_at']
         
     def __str__(self):
         return f"{self.quantity} x {self.product.title}"
