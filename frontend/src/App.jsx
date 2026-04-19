@@ -108,6 +108,7 @@ import Checkout from './pages/Checkout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Account from './pages/Account';
+import OurStoryPage from './pages/OurStoryPage';
 import { useAuth } from './context/AuthContext';
 import { API_URL } from './services/api';
 
@@ -189,6 +190,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/our-story" element={<OurStoryPage />} />
+          
           
           
 
