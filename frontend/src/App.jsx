@@ -111,6 +111,7 @@ import Account from './pages/Account';
 import OurStoryPage from './pages/OurStoryPage';
 import { useAuth } from './context/AuthContext';
 import { API_URL } from './services/api';
+import FaqPage from './pages/FaqPage';
 
 function App() {
   const { isInitialized } = useAuth();
@@ -191,6 +192,8 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/account" element={<Account />} />
           <Route path="/our-story" element={<OurStoryPage />} />
+          <Route path="/faq" element={<FaqPage />} />
+
           
           
           
