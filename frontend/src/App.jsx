@@ -112,6 +112,14 @@ import OurStoryPage from './pages/OurStoryPage';
 import { useAuth } from './context/AuthContext';
 import { API_URL } from './services/api';
 import FaqPage from './pages/FaqPage';
+import ShippingReturnsPage from './pages/ShippingReturnsPage';
+import SustainabilityPage from './pages/SustainabilityPage';
+import SizeGuidePage from './pages/SizeGuidePage';
+import MaterialsPage from './pages/MaterialsPage';
+import EthicalManufacturingPage from './pages/EthicalManufacturingPage';
+import TrackOrderPage from './pages/TrackOrderPage';
+import BlogPage from './pages/BlogPage';
+import ContactUsPage from './pages/ContactUsPage';
 
 function App() {
   const { isInitialized } = useAuth();
@@ -193,6 +201,14 @@ function App() {
           <Route path="/account" element={<Account />} />
           <Route path="/our-story" element={<OurStoryPage />} />
           <Route path="/faq" element={<FaqPage />} />
+          <Route path="/shipping-returns" element={<ShippingReturnsPage />} />
+          <Route path="/sustainability-practices" element={<SustainabilityPage />}/>
+          <Route path="/materials" element={<MaterialsPage />} />
+          <Route path="/size-guide" element={<SizeGuidePage />} /> 
+          <Route path="/ethical-manufacturing" element={<EthicalManufacturingPage />} />
+          <Route path="/track-order" element={<TrackOrderPage />} /> 
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/contact" element={<ContactUsPage />} />
 
           
           

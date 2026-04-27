@@ -64,9 +64,9 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-4">Support</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link to='contact' className="text-muted-foreground hover:text-foreground transition-colors">
                   Contact Us
-                </a>
+                </Link>
               </li>
               <li>
                 <Link to="/faq" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -74,19 +74,19 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/shipping-returns" className="text-muted-foreground hover:text-foreground transition-colors">
                   Shipping & Returns
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Size Guide
-                </a>
+                 <Link to="/size-guide" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Size Guide
+                 </Link>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/track-order" className="text-muted-foreground hover:text-foreground transition-colors">
                   Track Order
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -99,24 +99,24 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Sustainability Practices
-                </a>
+               <Link to="/sustainability-practices" className="text-muted-foreground hover:text-foreground transition-colors">
+                Sustainability Practices
+              </Link>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Materials
-                </a>
+                  <Link to="/materials" className="text-muted-foreground hover:text-foreground transition-colors">
+                    Materials
+                  </Link>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/ethical-manufacturing" className="text-muted-foreground hover:text-foreground transition-colors">
                   Ethical Manufacturing
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link to="/blog" className="text-muted-foreground hover:text-foreground transition-colors">
                   Blog
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
