@@ -1,22 +1,22 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
 } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Separator } from '../components/ui/separator'
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '../components/ui/select'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
@@ -30,10 +30,22 @@ const Checkout = () => {
   const { user, isAuthenticated } = useAuth()
   const { cartItems, calculateTotal, clearCart } = useCart()
   const { toast } = useToast()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please log in to proceed with checkout.',
+        variant: 'destructive',
+      })
+      navigate('/login', { state: { from: { pathname: '/checkout' } } })
+    }
+  }, [isAuthenticated, navigate, toast])
   
   const [formData, setFormData] = useState({
-    firstName: user?.first_name || '',
-    lastName: user?.last_name || '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
     email: user?.email || '',
     address: '',
     city: '',

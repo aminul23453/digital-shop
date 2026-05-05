@@ -26,7 +26,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Product.objects.filter(is_active=True)
     lookup_field = 'slug'
-    pagination_class = None # UNCOMMENT if frontend expects flat list, not paginated response
+    # Pagination enabled - uses settings.REST_FRAMEWORK['PAGE_SIZE'] = 12
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -96,10 +96,35 @@ class CartItemViewSet(viewsets.ModelViewSet):
 
 
     def perform_create(self, serializer):
+        from rest_framework.exceptions import ValidationError
+
         # Client sends: product (ID), variant (ID, optional), quantity
         product = serializer.validated_data.get('product')
         variant = serializer.validated_data.get('variant')
         quantity = serializer.validated_data.get('quantity')
+
+        # Validate quantity
+        if quantity <= 0:
+            raise ValidationError({'quantity': 'Quantity must be greater than 0'})
+
+        if quantity > 100:
+            raise ValidationError({'quantity': 'Maximum quantity per item is 100'})
+
+        # Check stock availability
+        if variant:
+            # Check variant stock
+            if variant.stock < quantity:
+                raise ValidationError({
+                    'error': f'Insufficient stock. Only {variant.stock} items available.'
+                })
+            available_stock = variant.stock
+        else:
+            # Check product inventory
+            if product.inventory < quantity:
+                raise ValidationError({
+                    'error': f'Insufficient stock. Only {product.inventory} items available.'
+                })
+            available_stock = product.inventory
 
         if self.request.user.is_authenticated:
             cart_item, created = CartItem.objects.get_or_create(
@@ -109,6 +134,15 @@ class CartItemViewSet(viewsets.ModelViewSet):
                 defaults={'quantity': quantity}
             )
             if not created:
+                # Check if total quantity would exceed stock
+                new_quantity = cart_item.quantity + quantity
+                if new_quantity > available_stock:
+                    raise ValidationError({
+                        'error': f'Cannot add {quantity} more. You already have {cart_item.quantity} in cart. Stock available: {available_stock}'
+                    })
+                if new_quantity > 100:
+                    raise ValidationError({'error': 'Maximum total quantity per item is 100'})
+
                 cart_item.quantity = F('quantity') + quantity
                 cart_item.save()
                 cart_item.refresh_from_db() # Get updated quantity
@@ -116,27 +150,28 @@ class CartItemViewSet(viewsets.ModelViewSet):
         else:
             session_id = self.request.data.get('session_id') # Get session_id from POST body
             if not session_id:
-                # This should be handled by the serializer or view validation before perform_create
-                # but as a fallback:
-                # raise serializers.ValidationError({'session_id': 'This field is required for guest users.'})
-                # For now, relying on frontend to send it. If not, it will fail unique constraint or save with None.
-                # Better to validate upfront.
-                # For now, if it gets here without session_id from body, it might fail.
-                # The serializer could also have session_id as a write_only field.
-                 pass # Let it proceed; if session_id is None and unique_together expects it, it might error
+                raise ValidationError({'session_id': 'Session ID is required for guest users.'})
 
             cart_item, created = CartItem.objects.get_or_create(
-                session_id=session_id, # Make sure session_id is provided
+                session_id=session_id,
                 product=product,
                 variant=variant,
                 defaults={'quantity': quantity}
             )
             if not created:
+                # Check if total quantity would exceed stock
+                new_quantity = cart_item.quantity + quantity
+                if new_quantity > available_stock:
+                    raise ValidationError({
+                        'error': f'Cannot add {quantity} more. You already have {cart_item.quantity} in cart. Stock available: {available_stock}'
+                    })
+                if new_quantity > 100:
+                    raise ValidationError({'error': 'Maximum total quantity per item is 100'})
+
                 cart_item.quantity = F('quantity') + quantity
                 cart_item.save()
                 cart_item.refresh_from_db()
             serializer.instance = cart_item
-            # serializer.save(session_id=session_id) # If session_id was part of serializer fields
 
     # To handle DELETE /api/cart?session_id=... (clear cart for session)
     @action(detail=False, methods=['delete'], url_path='clear', permission_classes=[permissions.AllowAny])
@@ -223,105 +258,149 @@ class UserDetailView(generics.RetrieveUpdateAPIView): # GET, PUT, PATCH /api/aut
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated]) # Only authenticated users can create orders
 def create_order(request): # Corresponds to /api/checkout/
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    from django.db import transaction
+
     user = request.user
     cart_items = CartItem.objects.filter(user=user).select_related('product', 'variant')
-    
+
     if not cart_items.exists():
         return Response({'error': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    # Extract required fields from request body for the order
-    email = request.data.get('email', user.email) # Default to user's email
+
+    # Extract and validate required fields from request body
+    email = request.data.get('email', user.email)
     shipping_address = request.data.get('shipping_address')
 
-    if not shipping_address:
+    # Validation
+    if not shipping_address or not shipping_address.strip():
         return Response({'error': 'Shipping address is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Calculate total amount
-    total_amount = 0
-    for item in cart_items:
-        price_to_use = item.product.price
-        if item.product.discount_price is not None:
-            price_to_use = item.product.discount_price
-        # Add variant price adjustments here if applicable
-        total_amount += price_to_use * item.quantity
-    
-    order_data = {
-        'user': user,
-        'email': email,
-        'shipping_address': shipping_address,
-        'total_amount': total_amount,
-        'status': 'pending' # Default status
-    }
-    order = Order.objects.create(**order_data)
-    
-    order_items_to_create = []
-    for cart_item in cart_items:
-        price_at_purchase = cart_item.product.price
-        if cart_item.product.discount_price is not None:
-            price_at_purchase = cart_item.product.discount_price
-        # Add variant price adjustments here if applicable
+    if not email:
+        return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        order_items_to_create.append(
-            OrderItem(
-                order=order,
-                product=cart_item.product,
-                variant=cart_item.variant,
-                quantity=cart_item.quantity,
-                price=price_at_purchase
-            )
-        )
-    OrderItem.objects.bulk_create(order_items_to_create)
-    
-    cart_items.delete() # Clear the user's cart
-    
-    serializer = OrderSerializer(order) # Serialize the created order
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+    # Validate email format
+    try:
+        validate_email(email)
+    except DjangoValidationError:
+        return Response({'error': 'Invalid email format.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Use atomic transaction to ensure data consistency
+    try:
+        with transaction.atomic():
+            # Validate stock availability and quantity limits
+            for item in cart_items:
+                # Check quantity limit
+                if item.quantity <= 0:
+                    return Response({'error': f'Invalid quantity for {item.product.title}'}, status=status.HTTP_400_BAD_REQUEST)
+
+                if item.quantity > 100:  # Max quantity per item
+                    return Response({'error': f'Maximum quantity per item is 100. Please adjust {item.product.title}'}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Check stock availability
+                if item.variant:
+                    # If there's a variant, check variant stock
+                    if item.variant.stock < item.quantity:
+                        return Response({
+                            'error': f'Insufficient stock for {item.product.title} ({item.variant.size}/{item.variant.color}). Available: {item.variant.stock}'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    # No variant, check product inventory
+                    if item.product.inventory < item.quantity:
+                        return Response({
+                            'error': f'Insufficient stock for {item.product.title}. Available: {item.product.inventory}'
+                        }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Calculate total amount
+            total_amount = 0
+            for item in cart_items:
+                price_to_use = item.product.price
+                if item.product.discount_price is not None:
+                    price_to_use = item.product.discount_price
+                total_amount += price_to_use * item.quantity
+
+            # Create order
+            order_data = {
+                'user': user,
+                'email': email,
+                'shipping_address': shipping_address,
+                'total_amount': total_amount,
+                'status': 'pending'
+            }
+            order = Order.objects.create(**order_data)
+
+            # Create order items and decrement stock
+            order_items_to_create = []
+            for cart_item in cart_items:
+                price_at_purchase = cart_item.product.price
+                if cart_item.product.discount_price is not None:
+                    price_at_purchase = cart_item.product.discount_price
+
+                order_items_to_create.append(
+                    OrderItem(
+                        order=order,
+                        product=cart_item.product,
+                        variant=cart_item.variant,
+                        quantity=cart_item.quantity,
+                        price=price_at_purchase
+                    )
+                )
+
+                # Decrement stock
+                if cart_item.variant:
+                    cart_item.variant.stock -= cart_item.quantity
+                    cart_item.variant.save()
+                else:
+                    cart_item.product.inventory -= cart_item.quantity
+                    cart_item.product.save()
+
+            OrderItem.objects.bulk_create(order_items_to_create)
+
+            # Clear the user's cart
+            cart_items.delete()
+
+            serializer = OrderSerializer(order)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        return Response({'error': f'Failed to create order: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
-# @permission_classes([permissions.IsAuthenticated]) # Node version allowed this for anyone with a session_id
-@permission_classes([permissions.AllowAny]) # Let's make it AllowAny to match Node's implied behavior for POST
+@permission_classes([permissions.IsAuthenticated])
 def merge_carts(request): # POST /api/cart/merge/
+    """
+    Merge guest cart items (identified by session_id) into authenticated user's cart.
+    This is called after login to combine any items added before authentication.
+    """
     session_id = request.data.get('session_id')
     if not session_id:
         return Response({'error': 'Session ID is required in the request body.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Node.js behavior for /api/cart/merge was to RETRIEVE the guest cart.
-    # Let's replicate that for now. If a true merge is needed, the logic would be different.
-    
-    guest_cart_items = CartItem.objects.filter(session_id=session_id).select_related('product', 'variant')
+    guest_cart_items = CartItem.objects.filter(session_id=session_id)
     if not guest_cart_items.exists():
-        return Response([], status=status.HTTP_200_OK) # Or 404 if preferred for empty/non-existent cart
+        # No guest cart to merge, return current user's cart
+        user_cart = CartItem.objects.filter(user=request.user).select_related('product', 'variant')
+        serializer = CartItemSerializer(user_cart, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    serializer = CartItemSerializer(guest_cart_items, many=True)
+    # Merge guest cart items into user's cart
+    for guest_item in guest_cart_items:
+        user_item, created = CartItem.objects.get_or_create(
+            user=request.user,
+            product=guest_item.product,
+            variant=guest_item.variant,
+            defaults={'quantity': guest_item.quantity, 'session_id': None}
+        )
+        if not created:
+            # Item already exists in user's cart, sum quantities
+            user_item.quantity += guest_item.quantity
+            user_item.save()
+
+    # Delete the guest cart items after merging
+    guest_cart_items.delete()
+
+    # Return the merged user cart
+    merged_user_cart = CartItem.objects.filter(user=request.user).select_related('product', 'variant')
+    serializer = CartItemSerializer(merged_user_cart, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
-
-    # --- IF YOU WANT A TRUE MERGE (when user logs in) ---
-    # This logic would typically be called by the frontend *after* successful login,
-    # passing the old guest session_id.
-    # if not request.user.is_authenticated:
-    #     return Response({'error': 'User must be authenticated for a true merge.'}, status=status.HTTP_401_UNAUTHORIZED)
-    
-    # guest_cart_items = CartItem.objects.filter(session_id=session_id)
-    # if not guest_cart_items.exists():
-    #     # Return current user's cart or empty if nothing to merge
-    #     user_cart = CartItem.objects.filter(user=request.user).select_related('product', 'variant')
-    #     serializer = CartItemSerializer(user_cart, many=True)
-    #     return Response(serializer.data, status=status.HTTP_200_OK)
-
-    # for guest_item in guest_cart_items:
-    #     user_item, created = CartItem.objects.get_or_create(
-    #         user=request.user,
-    #         product=guest_item.product,
-    #         variant=guest_item.variant,
-    #         defaults={'quantity': guest_item.quantity}
-    #     )
-    #     if not created: # Item already exists in user's cart, sum quantities
-    #         user_item.quantity = F('quantity') + guest_item.quantity
-    #         user_item.save()
-    
-    # guest_cart_items.delete() # Delete the guest cart items after merging
-    
-    # merged_user_cart = CartItem.objects.filter(user=request.user).select_related('product', 'variant')
-    # serializer = CartItemSerializer(merged_user_cart, many=True)
-    # return Response(serializer.data, status=status.HTTP_200_OK)

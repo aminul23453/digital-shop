@@ -56,25 +56,29 @@ class ProductDetailSerializer(serializers.ModelSerializer): # For single product
 
 class CartItemSerializer(serializers.ModelSerializer):
     product_title = serializers.CharField(source='product.title', read_only=True)
+    product_slug = serializers.CharField(source='product.slug', read_only=True)
     product_image = serializers.CharField(source='product.image_url', read_only=True, allow_null=True)
-    
-    # If the frontend sends variant ID when adding to cart, ensure 'variant' is a writable PK field.
-    # It's currently read-only by default if not specified for write.
-    # To make it writable for POST/PUT:
-    # variant = serializers.PrimaryKeyRelatedField(queryset=ProductVariant.objects.all(), allow_null=True, required=False)
+
+    # Make variant writable for POST/PUT operations
+    variant = serializers.PrimaryKeyRelatedField(
+        queryset=ProductVariant.objects.all(),
+        allow_null=True,
+        required=False
+    )
 
     size = serializers.CharField(source='variant.size', read_only=True, allow_null=True)
     color = serializers.CharField(source='variant.color', read_only=True, allow_null=True)
-    
+
     unit_price = serializers.SerializerMethodField()
     total_price = serializers.SerializerMethodField()
 
     class Meta:
         model = CartItem
         fields = [
-            'id',               
+            'id',
             'product',          # Writable: ID of the product
             'product_title',    # Read-only
+            'product_slug',     # Read-only - for cart item links
             'product_image',    # Read-only
             'variant',          # Writable: ID of the variant (ProductVariant PK)
             'size',             # Read-only
@@ -82,11 +86,7 @@ class CartItemSerializer(serializers.ModelSerializer):
             'quantity',         # Writable
             'unit_price',       # Read-only
             'total_price',      # Read-only
-            # 'session_id' is typically handled by the view, not sent by client in payload for GET.
-            # 'created_at' is auto-set.
         ]
-        # For POST/PUT, client mainly sends 'product', 'variant', 'quantity'.
-        # 'user' or 'session_id' are set in the view.
 
     def get_unit_price(self, obj: CartItem) -> float:
         if obj.product:

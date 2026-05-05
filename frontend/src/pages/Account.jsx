@@ -29,8 +29,8 @@ const Account = () => {
   const [profileLoading, setProfileLoading] = useState(false)
   
   const [profileForm, setProfileForm] = useState({
-    first_name: user?.first_name || '',
-    last_name: user?.last_name || '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
     email: user?.email || '',
   })
   
@@ -118,12 +118,12 @@ const Account = () => {
               <div className="flex flex-col items-center mb-6">
                 <Avatar className="h-20 w-20 mb-4">
                   <AvatarFallback className="text-lg">
-                    {user?.first_name?.charAt(0) || user?.username?.charAt(0) || 'U'}
+                    {user?.firstName?.charAt(0) || user?.username?.charAt(0) || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 <h2 className="text-xl font-semibold">
-                  {user?.first_name && user?.last_name
-                    ? `${user.first_name} ${user.last_name}`
+                  {user?.firstName && user?.lastName
+                    ? `${user.firstName} ${user.lastName}`
                     : user?.username}
                 </h2>
                 <p className="text-sm text-muted-foreground">{user?.email}</p>
@@ -284,24 +284,24 @@ const Account = () => {
                       
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <label htmlFor="first_name" className="text-sm font-medium">
+                          <label htmlFor="firstName" className="text-sm font-medium">
                             First Name
                           </label>
                           <Input
-                            id="first_name"
-                            name="first_name"
-                            value={profileForm.first_name}
+                            id="firstName"
+                            name="firstName"
+                            value={profileForm.firstName}
                             onChange={handleProfileChange}
                           />
                         </div>
                         <div className="space-y-2">
-                          <label htmlFor="last_name" className="text-sm font-medium">
+                          <label htmlFor="lastName" className="text-sm font-medium">
                             Last Name
                           </label>
                           <Input
-                            id="last_name"
-                            name="last_name"
-                            value={profileForm.last_name}
+                            id="lastName"
+                            name="lastName"
+                            value={profileForm.lastName}
                             onChange={handleProfileChange}
                           />
                         </div>

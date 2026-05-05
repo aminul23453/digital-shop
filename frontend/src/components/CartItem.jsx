@@ -27,7 +27,7 @@ const CartItem = ({ item }) => {
   return (
     <div className="flex items-start py-4 border-b">
       <div className="w-24 h-24 overflow-hidden rounded-md flex-shrink-0">
-        <Link to={`/product/${item.product}`}>
+        <Link to={`/product/${item.product_slug}`}>
           <img
             src={item.product_image}
             alt={item.product_title}
@@ -36,7 +36,7 @@ const CartItem = ({ item }) => {
         </Link>
       </div>
       <div className="ml-4 flex-1">
-        <Link to={`/product/${item.product}`}>
+        <Link to={`/product/${item.product_slug}`}>
           <h3 className="font-medium text-lg">{item.product_title}</h3>
         </Link>
         {(item.size || item.color) && (
