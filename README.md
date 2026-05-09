@@ -100,8 +100,8 @@ E-commerce-Django/
 ### 1. Clone the Repository
 
 ```bash
-git clone git@github.com:6ixGod6/thesis.git
-cd thesis
+git clone https://github.com/aminul23453/digital-shop.git
+cd digital-shop
 ```
 
 ### 2. Backend Setup
